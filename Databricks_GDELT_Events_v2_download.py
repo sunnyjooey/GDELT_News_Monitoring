@@ -19,7 +19,7 @@ from pyspark.sql.types import StructType, StructField, StringType
 
 # Input Params
 
-start_date = '2023-01-01'  # inclusive
+start_date = '2023-01-02'  # inclusive
 end_date = '2023-05-01'  # exclusive: download does not include this day 
 country_codes = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
 DATABASE_NAME = 'news_media'
