@@ -10,6 +10,7 @@ import urllib
 import zipfile
 import gc
 from io import BytesIO
+from param_spec import START_DATE, END_DATE, COUNTRY_CODES, DATABASE_NAME, TABLE_NAME, ERROR_TABLE_NAME
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 
@@ -17,14 +18,31 @@ from pyspark.sql.types import StructType, StructField, StringType
 
 # COMMAND ----------
 
-# Input Params
+# MAGIC %md
+# MAGIC ### Updates:
+# MAGIC 1. **Updated the country code for Malawi** \
+# MAGIC Code book: Encoded based on FIPS country codes \
+# MAGIC FIPS Country code source: https://en.wikipedia.org/wiki/List_of_FIPS_country_codes
+# MAGIC
+# MAGIC 2. **Code Modification: pd.concat V.S. df.append**\
+# MAGIC Same function but when working with large datasets, pd.concat will be more efficient since Append function will add rows of second data frame to first dataframe iteratively one by one. Concat function will do a single operation to finish the job, which makes it faster than append\
+# MAGIC https://medium.com/analytics-vidhya/a-tip-a-day-python-tip-5-pandas-concat-append-dev-skrol-18e4950cc8cc
+# MAGIC
+# MAGIC 3. **Sample data saved as a delta table**
 
-start_date = '2023-01-02'  # inclusive
-end_date = '2023-05-01'  # exclusive: download does not include this day 
-country_codes = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
-DATABASE_NAME = 'news_media'
-TABLE_NAME = 'horn_africa_gdelt_events_brz'
-ERROR_TABLE_NAME = 'horn_africa_errors'
+# COMMAND ----------
+
+a = "MI"
+a.split(',')
+
+# COMMAND ----------
+
+
+# Input Params
+start_date = START_DATE  # inclusive
+end_date = END_DATE  # exclusive: download does not include this day 
+country_codes = COUNTRY_CODES.split(',')
+
 
 # COMMAND ----------
 
@@ -57,7 +75,7 @@ gdelt_events_headers = gdelt_events_schema['tableId'].values
 idx_date = 0
 batch_size_date = 96
 total_range = len(date_range)
-num_batches_date = math.ceil(total_range / batch_size_date)
+num_batches_date = math.ceil(total_range / batch_size_date) # num of the batches
 gdelt_data_full_search = pd.DataFrame()
 error_df = pd.DataFrame()
 
@@ -78,10 +96,10 @@ for batch in range(num_batches_date):
             # remove undated rows
             _gdelt_data = _gdelt_data.dropna(subset=['SQLDATE']) 
             # append news to df for batch
-            _gdelt_data_batch = _gdelt_data_batch.append(_gdelt_data)
+            _gdelt_data_batch = pd.concat([_gdelt_data_batch, _gdelt_data])
         except Exception as e:
             edf = pd.DataFrame({'date':[_date], 'data':['events2'], 'error':[str(e)]})
-            error_df = error_df.append(edf)
+            error_df = pd.concat([error_df, edf])
             print(f'#### FAILED AT {date} ####')
 
     # reset index
@@ -97,7 +115,7 @@ for batch in range(num_batches_date):
     # reset index
     _gdelt_data_batch.reset_index(inplace=True, drop=True)
     # append batch to full search results df
-    gdelt_data_full_search = gdelt_data_full_search.append(_gdelt_data_batch)
+    gdelt_data_full_search = pd.concat([gdelt_data_full_search, _gdelt_data_batch])
     # unpdate indices for next batch
     idx_date += batch_size_date
 
@@ -137,7 +155,3 @@ if error_df.shape[0] > 0:
     eschema = [StructField(col, StringType(), True) for col in error_df.columns]
     spedf = spark.createDataFrame(error_df, StructType(eschema))
     spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE_NAME))
-
-# COMMAND ----------
-
-

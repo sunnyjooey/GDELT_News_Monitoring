@@ -13,19 +13,24 @@ import gc
 from io import BytesIO
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
-
+from param_spec import START_DATE, END_DATE, COUNTRY_CODES, INPUT_TABLE_NAME, OUTPUT_TABLE_NAME, ERROR_TABLE_NAME_NEWS, DATABASE_NAME
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### Updates:
+# MAGIC 1. Delete schema setup for embeddings
+# MAGIC 2. Delete embedding into separate columns and merge without embeddings\
+# MAGIC Q: Do we need to combine the events table and the news table together into one table or keep them separate?
+# MAGIC 3. Sample data saved as delta table
+
+# COMMAND ----------
+
 # Input Params
-start_date = '2023-02-01'  # inclusive
-end_date = '2023-05-01'  # exclusive: download does not include this day 
-DATABASE_NAME = 'news_media'
-INPUT_TABLE_NAME = 'horn_africa_gdelt_events_brz'
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
-ERROR_TABLE_NAME = 'horn_africa_errors'
+start_date = START_DATE  # inclusive
+end_date = END_DATE  # exclusive: download does not include this day 
 
 # COMMAND ----------
 
@@ -47,11 +52,8 @@ print('Number of time intervals:', len(date_range))
 # COMMAND ----------
 
 # define schema 
-str_cols = ['date', 'url', 'lang', 'title', 'model']
-flt_cols = [c for c in [str(x) for x in np.arange(512)]]
+str_cols = ['date', 'url', 'lang', 'title']
 str_schema = [StructField(col, StringType(), True) for col in str_cols]
-flt_schema = [StructField(col, FloatType(), True) for col in flt_cols]
-str_schema.extend(flt_schema)
 str_schema.extend([StructField('DATEADDED', StringType(), True)])
 # error df schema
 eschema = [StructField('date', StringType(), True), StructField('data', StringType(), True), StructField('error', StringType(), True)]
@@ -97,16 +99,14 @@ for batch in range(num_batches_date):
             _gdelt_data = _gdelt_data.split('\n')
             _gdelt_data = [json.loads(f) for f in _gdelt_data if len(f)>0]
             _gdelt_data = pd.DataFrame(_gdelt_data)
-            # embedding into separate columns
-            _gdelt_data_emb = pd.DataFrame(np.array(list(_gdelt_data['docembed'])), columns = [str(x) for x in np.arange(512)])
-            _gdelt_data = _gdelt_data.drop(columns=['docembed'])
-            _gdelt_data = pd.concat([_gdelt_data, _gdelt_data_emb], axis=1)
+            _gdelt_data.drop(inplace=True, columns=['model', 'docembed'])
+
             # merge with events data to save only relevant rows
             merged = pd.merge(events, _gdelt_data, left_on='SOURCEURL', right_on='url')
             _gdelt_data = merged.loc[: , _gdelt_data.columns].copy()
             _gdelt_data['DATEADDED'] = _date
             # append news to df for batch
-            _gdelt_data_batch = _gdelt_data_batch.append(_gdelt_data)
+            _gdelt_data_batch = pd.concat([_gdelt_data_batch, _gdelt_data])
             # clear from memory
             del _gdelt_data
 
