@@ -116,7 +116,8 @@ df.groupby('Events')\
 final_dat.groupby('Events')\
     .agg({'AvgTone':'mean'})\
     .rename(columns={'AvgTone': 'Mean of AvgTone'})\
-    .sort_values(by=['Mean of AvgTone'], ascending=False)
+    .sort_values(by=['Mean of AvgTone'], ascending=False)\
+    .plot(kind='barh')
 
 # COMMAND ----------
 

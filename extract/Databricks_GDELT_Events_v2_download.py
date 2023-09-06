@@ -10,7 +10,7 @@ import urllib
 import zipfile
 import gc
 from io import BytesIO
-from param_spec import START_DATE, END_DATE, COUNTRY_CODES, DATABASE_NAME, TABLE_NAME, ERROR_TABLE_NAME
+from param_spec import START_DATE, END_DATE, COUNTRY_CODES, DATABASE_NAME, EVENT_TABLE, ERROR_TABLE
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 
@@ -29,11 +29,6 @@ from pyspark.sql.types import StructType, StructField, StringType
 # MAGIC https://medium.com/analytics-vidhya/a-tip-a-day-python-tip-5-pandas-concat-append-dev-skrol-18e4950cc8cc
 # MAGIC
 # MAGIC 3. **Sample data saved as a delta table**
-
-# COMMAND ----------
-
-a = "MI"
-a.split(',')
 
 # COMMAND ----------
 
@@ -146,7 +141,7 @@ spdf = spark.createDataFrame(gdelt_data_full_search, StructType(schema))
 # COMMAND ----------
 
 # save output
-spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, TABLE_NAME))
+spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, EVENT_TABLE))
 
 # COMMAND ----------
 
@@ -154,4 +149,4 @@ spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NA
 if error_df.shape[0] > 0:
     eschema = [StructField(col, StringType(), True) for col in error_df.columns]
     spedf = spark.createDataFrame(error_df, StructType(eschema))
-    spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE_NAME))
+    spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE))

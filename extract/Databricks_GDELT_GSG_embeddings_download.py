@@ -13,7 +13,7 @@ import gc
 from io import BytesIO
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
-from param_spec import START_DATE, END_DATE, COUNTRY_CODES, INPUT_TABLE_NAME, OUTPUT_TABLE_NAME, ERROR_TABLE_NAME_NEWS, DATABASE_NAME
+from param_spec import START_DATE, END_DATE, COUNTRY_CODES, EVENT_TABLE, EMBED_TABLE, ERROR_TABLE, DATABASE_NAME
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
@@ -23,7 +23,6 @@ from pyspark.sql.types import StructType, StructField, StringType, FloatType
 # MAGIC ### Updates:
 # MAGIC 1. Delete schema setup for embeddings
 # MAGIC 2. Delete embedding into separate columns and merge without embeddings\
-# MAGIC Q: Do we need to combine the events table and the news table together into one table or keep them separate?
 # MAGIC 3. Sample data saved as delta table
 
 # COMMAND ----------
@@ -78,7 +77,7 @@ for batch in range(num_batches_date):
     after = day + dt.timedelta(2)
 
     # for filtering events data for easier merging
-    events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
+    events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
     events = events.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
     events = events.withColumn('DATEADDED', F.to_date('DATEADDED'))
     events = events.filter((events.DATEADDED >= before) & (events.DATEADDED <= after))
@@ -113,7 +112,7 @@ for batch in range(num_batches_date):
         except Exception as e:
             edf = pd.DataFrame({'date':[_date], 'data':['gsg_embed'], 'error':[str(e)]})
             spedf = spark.createDataFrame(edf, StructType(eschema))
-            spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE_NAME))
+            spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE))
             print(f'#### FAILED AT {date} - ####')
 
     # reset index
@@ -124,7 +123,7 @@ for batch in range(num_batches_date):
     spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
     spdf = spark.createDataFrame(_gdelt_data_batch, StructType(str_schema))
     # save output
-    spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, EMBED_TABLE))
 
     # unpdate indices for next batch
     idx_date += batch_size_date
