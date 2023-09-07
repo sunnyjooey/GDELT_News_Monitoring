@@ -1,6 +1,7 @@
 # import libraries
 import datetime as dt
 import os
+import re
 import pandas as pd
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
@@ -62,19 +63,15 @@ def match_admin(spark):
     return pd.merge(event_news, admins, 'inner', on='SOURCEURL')
 
 
-def process_data(ord_data, text_col):
+def clean_lines(df, text_col):
     """
-    Process and clean the article DataFrame.
-    Saves processed data as the attribute processed_df
+    Clean new lines, spaces
     Args:
-        ord_data: the dataframe containing texts
+        df: the dataframe containing texts
         text_col: the text column to clean
     """
 
-    article_df = ord_data.copy()
-    print(f'Original number of articles: {article_df.shape[0]}')
-
-    # clean new lines, spaces 
+    article_df = df.copy()
     text_col_clean = f'{text_col}_clean'
     article_df[text_col_clean] = article_df[text_col].astype(str)
     article_df[text_col_clean] = article_df[text_col_clean].apply(lambda x: x.replace('\s', ' ').strip())
@@ -85,17 +82,62 @@ def process_data(ord_data, text_col):
     article_df[text_col_clean] = article_df[text_col_clean].apply(lambda x: x.replace('“', '"').strip())
     article_df[text_col_clean] = article_df[text_col_clean].apply(lambda x: x.replace('”', '"'.strip()))
     article_df[text_col_clean] = article_df[text_col_clean].apply(lambda x: re.sub('\s\s+' , ' ', x)) # Condense multiple spaces to one
-    article_df = article_df[article_df[text_col_clean] != '']
-    article_df = article_df[article_df[text_col_clean] != 'None']
     
-    # take out known error messages
-    article_df['bad'] = article_df[text_col_clean].apply(lambda x: 1 if re.search(r'(something went wrong, please try again later)|(cloudflare ray)|(legal disclaimer)|(page unavailable)|(website is using a security service to protect itself from online attacks)|(is using a security service for protection against online attacks)|(412 error)|(access denied - godaddy website)', x, re.IGNORECASE) else 0)
-    article_df = article_df[article_df['bad']==0]
-    article_df = article_df.drop('bad', axis=1)
+    return article_df
+
+
+def error_handler(df, text_col, drop=True):
+    """
+    Detect/drop rows with error messages
+    Args:
+        df: dataframe
+        text_col: the text col
+        drop: bool specifying whether to drop the flag columns and rows with errors
+    """
+
+    article_df = df.copy()
+    text_col_clean = f'{text_col}_clean'
+
+    # Flag empty values
+    article_df.loc[:,'empty_return'] = 0
+    article_df.loc[(article_df[text_col_clean] == '') |
+                   (article_df[text_col_clean] == 'None'),'empty_return'] = 1
+
+    # take out known error messages - text col (hard code)
+    article_df['error_text'] = article_df[text_col_clean].apply(lambda x: 1 if re.search(r'(something went wrong, please try again later)|(cloudflare ray)|(legal disclaimer)|(page unavailable)|(website is using a security service to protect itself from online attacks)|(is using a security service for protection against online attacks)|(412 error)|(access denied - godaddy website)', x, re.IGNORECASE) else 0)
+
     # take out known error messages - title col (hard code)
-    article_df['bad'] = article_df['title'].apply(lambda x: 1 if re.search(r'(page not found)|(are you a robot)|porn|biztoc', x, re.IGNORECASE) else 0)
-    article_df = article_df[article_df['bad']==0]
-    article_df = article_df.drop('bad', axis=1)
+    article_df['error_title'] = article_df['title'].apply(lambda x: 1 if re.search(r'(page not found)|(are you a robot)|porn|biztoc', x, re.IGNORECASE) else 0)
+
+    if drop:
+        article_df = article_df[article_df['error_text']==0]
+        article_df = article_df.drop('error_text', axis=1)
+        article_df = article_df[article_df['error_title']==0]
+        article_df = article_df.drop('error_title', axis=1)
+        article_df = article_df[article_df['empty_return']==0]
+        article_df = article_df.drop('empty_return', axis=1)
+    
+    return article_df
+
+
+def process_data(ord_data, text_col, drop=True):
+    """
+    Process and clean the article DataFrame.
+    Saves processed data as the attribute processed_df
+    Args:
+        ord_data: the dataframe containing texts
+        text_col: the text column to clean
+        drop: bool specifying whether to drop the flag columns and rows with errors
+    """
+
+    article_df = ord_data.copy()
+    print(f'Original number of articles: {article_df.shape[0]}')
+
+    # clean new lines, spaces
+    artical_df = clean_lines(article_df, text_col)
+
+    # take out known error messages
+    article_df = error_handler(artical_df, text_col, drop)
 
     # Save the processed DataFrame as processed_df
     print(f'Number of articles after cleaning: {article_df.shape[0]}')
