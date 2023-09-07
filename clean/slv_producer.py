@@ -35,11 +35,19 @@ new_data.info()
 
 # COMMAND ----------
 
+new_data.loc[:, 'title'].fillna('', inplace=True)
+
+# COMMAND ----------
+
 final_data = process_data(new_data, 'text')
 
 # COMMAND ----------
 
-final_data.head(3)
+final_data.info()
+
+# COMMAND ----------
+
+final_data
 
 # COMMAND ----------
 

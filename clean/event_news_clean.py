@@ -33,7 +33,7 @@ def merge_event_news(spark):
     titles = titles.toPandas()
     titles.rename(columns={'DATEADDED': 'DATEADDED_titles'}, inplace=True)
 
-    event_title = pd.merge(events, titles, 'inner', left_on='SOURCEURL', right_on='url')
+    event_title = pd.merge(events, titles, 'left', left_on='SOURCEURL', right_on='url')
 
     # for filtering texts data for easier merging
     texts =  spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ARTICLE_TEXT_TABLE}")
@@ -43,7 +43,7 @@ def merge_event_news(spark):
     texts = texts.toPandas()
     texts.rename(columns={'DATEADDED': 'DATEADDED_texts'}, inplace=True)
 
-    return pd.merge(event_title, texts, 'inner', left_on='SOURCEURL', right_on='url')
+    return pd.merge(event_title, texts, 'left', left_on='SOURCEURL', right_on='url')
 
 
 def match_admin(spark):
@@ -60,7 +60,7 @@ def match_admin(spark):
 
     event_news = merge_event_news(spark)
 
-    return pd.merge(event_news, admins, 'inner', on='SOURCEURL')
+    return pd.merge(event_news, admins, 'left', on='SOURCEURL')
 
 
 def clean_lines(df, text_col):
