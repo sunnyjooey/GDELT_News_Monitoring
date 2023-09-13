@@ -14,6 +14,12 @@ from param_spec import CAMEO_TABLE
 
 # Fetch the event-news data
 data = merge_event_news(spark)
+cameo = pd.read_csv(CAMEO_TABLE,
+                    header=None,
+                    names=['code', 'Events', 'additional_info_1', 'additional_info_2'],
+                    delimiter=',',
+                    dtype={'code': 'str'})
+
 
 # COMMAND ----------
 
@@ -28,7 +34,7 @@ def match_code(str_code):
 data.loc[:,'EventRootCode'] = data.loc[:,'EventRootCode'].map(match_code)
 
 # Merge data
-new_dat = pd.merge(data, CAMEO_TABLE, 'inner', left_on='EventRootCode', right_on='code')
+new_dat = pd.merge(data, cameo, 'inner', left_on='EventRootCode', right_on='code')
 
 # Produce the data with target columns
 final_dat = new_dat.loc[:, ['EventRootCode', 'Events', 'GoldsteinScale', 

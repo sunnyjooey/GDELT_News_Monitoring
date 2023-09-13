@@ -26,10 +26,6 @@ ADMIN_TABLE = 'brz_admin_combine'
 
 SHAPEFILE = '/dbfs/FileStore/df/shapefiles/malawi_admin1'
 
-CAMEO_TABLE =  pd.read_csv('/dbfs/user/hive/warehouse/malawi_news.db/cameo.csv',
-                           header=None,
-                           names=['code', 'Events', 'additional_info_1', 'additional_info_2'],
-                           delimiter=',',
-                           dtype={'code': 'str'})
+CAMEO_TABLE = '/dbfs/user/hive/warehouse/malawi_news.db/cameo.csv'
                     
 TARGET_CAMEO = ['14','15','17','18','19']
