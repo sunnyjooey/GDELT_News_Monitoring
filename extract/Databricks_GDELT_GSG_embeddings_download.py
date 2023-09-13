@@ -13,23 +13,18 @@ import gc
 from io import BytesIO
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
-from param_spec import START_DATE, END_DATE, COUNTRY_CODES, EVENT_TABLE, EMBED_TABLE, ERROR_TABLE, DATABASE_NAME
+from param_spec import EVENT_TABLE, EMBED_TABLE, ERROR_TABLE, DATABASE_NAME
+from util import get_last_timestamp
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ### Updates:
-# MAGIC 1. Delete schema setup for embeddings
-# MAGIC 2. Delete embedding into separate columns and merge without embeddings\
-# MAGIC 3. Sample data saved as delta table
-
-# COMMAND ----------
-
 # Input Params
-start_date = START_DATE  # inclusive
-end_date = END_DATE  # exclusive: download does not include this day 
+# inclusive
+start_date = get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 1).strftime('%Y-%m-%d') 
+# exclusive
+end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d')
 
 # COMMAND ----------
 

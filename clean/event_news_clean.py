@@ -5,9 +5,23 @@ import re
 import pandas as pd
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
-from param_spec import EVENT_TABLE, EMBED_TABLE, ARTICLE_TEXT_TABLE, CLEAN_TABLE, DATABASE_NAME, ADMIN_TABLE
+from param_spec import EVENT_TABLE, EMBED_TABLE, ARTICLE_TEXT_TABLE, CLEAN_TABLE, DATABASE_NAME, ADMIN_TABLE, TARGET_CAMEO, COUNTRY_CODES
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, StringType, FloatType
+from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
+
+
+def create_score_col(spark_event_df):
+    """
+    Create a score column for the event table
+    """
+
+    def score(act1, act2, action):
+        return sum([act1==COUNTRY_CODES, act2==COUNTRY_CODES, action==COUNTRY_CODES])
+    score_udf = F.udf(score, IntegerType())
+
+    spark_event_df = spark_event_df.withColumn('score', score_udf(spark_event_df.Actor1Geo_CountryCode, spark_event_df.Actor2Geo_CountryCode, spark_event_df.ActionGeo_CountryCode))
+
+    return spark_event_df
 
 
 def merge_event_news(spark):
@@ -21,7 +35,10 @@ def merge_event_news(spark):
     events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
     events = events.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
     events = events.withColumn('DATEADDED', F.to_date('DATEADDED'))
-    events = events.filter((events.IsRootEvent == '1'))
+    events = events.filter((events.IsRootEvent == '1')) # Filter to root events
+    events = events.filter(events.EventRootCode.isin(TARGET_CAMEO)) # Filter to target CAMEOs
+    events = create_score_col(events) # create score column
+    events = events.filter(events.score >= 2) # Filter by assigned score
     events = events.dropDuplicates(['SOURCEURL'])
     events = events.toPandas()
 
@@ -52,15 +69,18 @@ def match_admin(spark):
     """
 
     admins = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ADMIN_TABLE}")
-    admins = admins.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
-    admins = admins.withColumn('DATEADDED', F.to_date('DATEADDED'))
-    admins = admins.dropDuplicates(['SOURCEURL'])
     admins = admins.toPandas()
-    admins.rename(columns={'DATEADDED': 'DATEADDED_admin'}, inplace=True)
-
     event_news = merge_event_news(spark)
+    event_admin_news = pd.merge(event_news, admins, 'left', on='GLOBALEVENTID')
+    # Drop repetitive columns
+    event_admin_news = event_admin_news.drop(['url_x', 'url_y', 'title_y'], axis=1)
 
-    return pd.merge(event_news, admins, 'left', on='SOURCEURL')
+    # Rename columns ending with '_x'
+    for name in event_admin_news.columns:
+        if re.search(r'_x$', name):
+            event_admin_news.rename(columns={name: re.sub(r'_x$', '', name)}, inplace=True)
+
+    return event_admin_news
 
 
 def clean_lines(df, text_col):

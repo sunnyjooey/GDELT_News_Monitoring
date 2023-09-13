@@ -3,6 +3,7 @@ import pandas as pd
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 from clean.event_news_clean import merge_event_news
+from param_spec import CAMEO_TABLE
 
 # COMMAND ----------
 
@@ -11,13 +12,8 @@ from clean.event_news_clean import merge_event_news
 
 # COMMAND ----------
 
-# Fetch the event-news data and CAMEO event codebook
+# Fetch the event-news data
 data = merge_event_news(spark)
-cameo = pd.read_csv('/dbfs/user/hive/warehouse/malawi_news.db/cameo.csv',
-                    header=None,
-                    names=['code', 'Events'],
-                    delimiter=',',
-                    dtype=('str', 'str'))
 
 # COMMAND ----------
 
@@ -32,7 +28,7 @@ def match_code(str_code):
 data.loc[:,'EventRootCode'] = data.loc[:,'EventRootCode'].map(match_code)
 
 # Merge data
-new_dat = pd.merge(data, cameo, 'inner', left_on='EventRootCode', right_on='code')
+new_dat = pd.merge(data, CAMEO_TABLE, 'inner', left_on='EventRootCode', right_on='code')
 
 # Produce the data with target columns
 final_dat = new_dat.loc[:, ['EventRootCode', 'Events', 'GoldsteinScale', 

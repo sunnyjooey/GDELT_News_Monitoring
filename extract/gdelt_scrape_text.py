@@ -28,17 +28,6 @@ from param_spec import DATABASE_NAME, EVENT_TABLE, ARTICLE_TEXT_TABLE
 
 # COMMAND ----------
 
-# install nltk punkt on workers
-num_executors = max(sc._jsc.sc().getExecutorMemoryStatus().size() -1, 1)
-
-try:
-    sc.parallelize((("") * num_executors), num_executors) .mapPartitions(lambda p: [nltk.download('punkt')]).collect()
-except:
-    print("Didn't parallelize nltk donwload")
-
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### load data
 
@@ -60,7 +49,6 @@ w = Window.orderBy(F.lit(1))
 events = events.withColumn("stop_id", F.row_number().over(w))
 events = events.orderBy(F.col("DATEADDED"))
 print(events.count())
-display(events)
 
 # COMMAND ----------
 

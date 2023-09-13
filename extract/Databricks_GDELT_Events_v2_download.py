@@ -10,7 +10,8 @@ import urllib
 import zipfile
 import gc
 from io import BytesIO
-from param_spec import START_DATE, END_DATE, COUNTRY_CODES, DATABASE_NAME, EVENT_TABLE, ERROR_TABLE
+from param_spec import COUNTRY_CODES, DATABASE_NAME, EVENT_TABLE, ERROR_TABLE
+from util import get_last_timestamp
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 
@@ -18,26 +19,11 @@ from pyspark.sql.types import StructType, StructField, StringType
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ### Updates:
-# MAGIC 1. **Updated the country code for Malawi** \
-# MAGIC Code book: Encoded based on FIPS country codes \
-# MAGIC FIPS Country code source: https://en.wikipedia.org/wiki/List_of_FIPS_country_codes
-# MAGIC
-# MAGIC 2. **Code Modification: pd.concat V.S. df.append**\
-# MAGIC Same function but when working with large datasets, pd.concat will be more efficient since Append function will add rows of second data frame to first dataframe iteratively one by one. Concat function will do a single operation to finish the job, which makes it faster than append\
-# MAGIC https://medium.com/analytics-vidhya/a-tip-a-day-python-tip-5-pandas-concat-append-dev-skrol-18e4950cc8cc
-# MAGIC
-# MAGIC 3. **Sample data saved as a delta table**
-
-# COMMAND ----------
-
-
-# Input Params
-start_date = START_DATE  # inclusive
-end_date = END_DATE  # exclusive: download does not include this day 
-country_codes = COUNTRY_CODES.split(',')
-
+# Download the data between yesterday and the day a week ago
+# Ex. If today is F, then the data will include T, W, T, M, last S, last S, last F
+# Input date Params
+start_date = get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1).strftime('%Y-%m-%d') # inclusive
+end_date = dt.datetime.now().strftime('%Y-%m-%d') # exclusive
 
 # COMMAND ----------
 
@@ -52,7 +38,7 @@ def get_date_time_intervals(_start_date, _end_date):
 # get dates
 date_range = get_date_time_intervals(start_date, end_date)
 
-# exclude last time frame published at midnight for last 15 min from day before
+#exclude last time frame published at midnight for last 15 min from day before
 date_range = date_range[:-1]
 print('Number of time intervals:', len(date_range))
 
@@ -103,9 +89,9 @@ for batch in range(num_batches_date):
     print('ALL GDELT 2.0 events in batch:', _gdelt_data_batch.shape)
     # select data from events for defined country 
     # note: we are not filtering by Actor1CountryCode (and 2) because they do not seem to be accurate
-    _gdelt_data_batch = _gdelt_data_batch.loc[(_gdelt_data_batch.ActionGeo_CountryCode.isin(country_codes)) | 
-                                              (_gdelt_data_batch.Actor1Geo_CountryCode.isin(country_codes)) | 
-                                              (_gdelt_data_batch.Actor2Geo_CountryCode.isin(country_codes))].copy()
+    _gdelt_data_batch = _gdelt_data_batch.loc[(_gdelt_data_batch.ActionGeo_CountryCode == COUNTRY_CODES) | 
+                                              (_gdelt_data_batch.Actor1Geo_CountryCode == COUNTRY_CODES) | 
+                                              (_gdelt_data_batch.Actor2Geo_CountryCode == COUNTRY_CODES)].copy()
     print('Number of country relevant events:', _gdelt_data_batch.shape[0])
     # reset index
     _gdelt_data_batch.reset_index(inplace=True, drop=True)
