@@ -39,9 +39,9 @@ events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
 # COMMAND ----------
 
 # inclusive
-start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1).strftime('%Y-%m-%d') 
+start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 3).strftime('%Y-%m-%d') 
 # exclusive
-end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d') 
+end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3) + dt.timedelta(days=1)).strftime('%Y-%m-%d') 
 
 # Convert start and end dates to timestamps
 start_timestamp = datetime.strptime(start_date, "%Y-%m-%d")

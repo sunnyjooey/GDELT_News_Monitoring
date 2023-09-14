@@ -22,7 +22,7 @@ from pyspark.sql.types import StructType, StructField, StringType
 # Download the data between yesterday and the day a week ago
 # Ex. If today is F, then the data will include T, W, T, M, last S, last S, last F
 # Input date Params
-start_date = get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1).strftime('%Y-%m-%d') # inclusive
+start_date = get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3).strftime('%Y-%m-%d') # inclusive
 end_date = dt.datetime.now().strftime('%Y-%m-%d') # exclusive
 
 # COMMAND ----------
