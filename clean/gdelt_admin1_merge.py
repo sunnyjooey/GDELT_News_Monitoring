@@ -1,7 +1,7 @@
 # Databricks notebook source
-!pip install pysal
-!pip install descartes
-!pip install geopandas
+#!pip install pysal
+#!pip install descartes
+#!pip install geopandas
 
 # COMMAND ----------
 

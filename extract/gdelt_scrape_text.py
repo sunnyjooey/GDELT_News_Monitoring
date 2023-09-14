@@ -1,7 +1,7 @@
 # Databricks notebook source
-!pip install nltk
-!pip install newspaper3k 
-!pip3 install readability-lxml
+#!pip install nltk
+#!pip install newspaper3k 
+#!pip3 install readability-lxml
 
 # COMMAND ----------
 
