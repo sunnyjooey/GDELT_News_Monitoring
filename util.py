@@ -21,8 +21,8 @@ def get_last_timestamp(db_name, table_name, w, keyword=None, date_col='DATEADDED
             d = dt.datetime.now() - dt.timedelta(days=1)
             last_ts = spark.sql(f"SELECT MAX({date_col}) as last_timestamp FROM {db_name}.{table_name} WHERE {date_col} < '{d.year}{d.month}{d.day}{d.hour}{d.minute}{d.second}'")
         last_ts = last_ts.first()['last_timestamp']
-        #w_wk_ago = pd.to_datetime((dt.datetime.now() - dt.timedelta(weeks=w)), format='%Y%m%d%H%M%S')
-        w_wk_ago = pd.to_datetime((dt.datetime.now() - dt.timedelta(days=w)), format='%Y%m%d%H%M%S')
+        w_wk_ago = pd.to_datetime((dt.datetime.now() - dt.timedelta(weeks=w)), format='%Y%m%d%H%M%S')
+        #w_wk_ago = pd.to_datetime((dt.datetime.now() - dt.timedelta(days=w)), format='%Y%m%d%H%M%S')
         
         if last_ts is None:
             ret = w_wk_ago
@@ -31,8 +31,8 @@ def get_last_timestamp(db_name, table_name, w, keyword=None, date_col='DATEADDED
             # return the later time of the two
             ret = max(w_wk_ago, last_ts) 
     else:
-        #ret = pd.to_datetime((dt.datetime.now() - dt.timedelta(weeks=w)), format='%Y%m%d%H%M%S')
-        ret = pd.to_datetime((dt.datetime.now() - dt.timedelta(days=w)), format='%Y%m%d%H%M%S')
+        ret = pd.to_datetime((dt.datetime.now() - dt.timedelta(weeks=w)), format='%Y%m%d%H%M%S')
+        #ret = pd.to_datetime((dt.datetime.now() - dt.timedelta(days=w)), format='%Y%m%d%H%M%S')
 
     return ret
 

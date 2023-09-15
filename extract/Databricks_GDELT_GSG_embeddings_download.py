@@ -21,10 +21,16 @@ from pyspark.sql.types import StructType, StructField, StringType, FloatType
 # COMMAND ----------
 
 # Input Params
+# For testing:
 # inclusive
-start_date = get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 3).strftime('%Y-%m-%d') 
+#start_date = get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 3).strftime('%Y-%m-%d') 
 # exclusive
-end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3) + dt.timedelta(days=1)).strftime('%Y-%m-%d')
+#end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3) + dt.timedelta(days=1)).strftime('%Y-%m-%d')
+
+# inclusive
+start_date = get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 1).strftime('%Y-%m-%d') 
+# exclusive
+end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d')
 
 # COMMAND ----------
 
