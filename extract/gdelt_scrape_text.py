@@ -36,7 +36,7 @@ from param_spec import DATABASE_NAME, EVENT_TABLE, ARTICLE_TEXT_TABLE
 # COMMAND ----------
 
 # Get last time from article table
-start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1, 'dbtimeadded').strftime('%Y-%m-%d') 
+start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1).strftime('%Y-%m-%d') 
 # Convert start and end dates to timestamps
 start_timestamp = datetime.datetime.strptime(start_date, "%Y-%m-%d")
 
@@ -75,10 +75,8 @@ batch_size_date = 500
 total_range = events.count()
 num_batches_date = math.ceil(total_range / batch_size_date)
 tot_row = 0
-now = datetime.datetime.now()
 
 # COMMAND ----------
-
 
 for batch in range(num_batches_date):
     df = []
@@ -90,8 +88,6 @@ for batch in range(num_batches_date):
         df.append(dct)
 
     spdf = spark.createDataFrame(df)
-    # add column for keeping track of time added to database
-    spdf = spdf.withColumn('dbtimeadded', F.lit(now))
     # write to db
     spdf.write.mode('append').format('delta').option("mergeSchema", "true").saveAsTable("{}.{}".format(DATABASE_NAME, ARTICLE_TEXT_TABLE))
     # tracking

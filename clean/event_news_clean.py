@@ -5,7 +5,7 @@ import re
 import pandas as pd
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
-from param_spec import EVENT_TABLE, EMBED_TABLE, ARTICLE_TEXT_TABLE, CLEAN_TABLE, DATABASE_NAME, ADMIN_TABLE, TARGET_CAMEO, COUNTRY_CODES
+from param_spec import EVENT_TABLE, EMBED_TABLE, ARTICLE_TEXT_TABLE, CLEAN_TABLE, DATABASE_NAME, ADMIN_TABLE, TARGET_CAMEO, COUNTRY_CODE
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
 
@@ -16,7 +16,7 @@ def create_score_col(spark_event_df):
     """
 
     def score(act1, act2, action):
-        return sum([act1==COUNTRY_CODES, act2==COUNTRY_CODES, action==COUNTRY_CODES])
+        return sum([act1==COUNTRY_CODE, act2==COUNTRY_CODE, action==COUNTRY_CODE])
     score_udf = F.udf(score, IntegerType())
 
     spark_event_df = spark_event_df.withColumn('score', score_udf(spark_event_df.Actor1Geo_CountryCode, spark_event_df.Actor2Geo_CountryCode, spark_event_df.ActionGeo_CountryCode))
@@ -35,11 +35,15 @@ def merge_event_news(spark):
     events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
     events = events.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
     events = events.withColumn('DATEADDED', F.to_date('DATEADDED'))
+    print('Total number of events:', events.count())
     events = events.filter((events.IsRootEvent == '1')) # Filter to root events
-    events = events.filter(events.EventRootCode.isin(TARGET_CAMEO)) # Filter to target CAMEOs
+    print('IsRootEvent:', events.count())
+    if len(TARGET_CAMEO) > 0:
+        events = events.filter(events.EventRootCode.isin(TARGET_CAMEO)) # Filter to target 
+        print('Target cameo:', event.count())
     events = create_score_col(events) # create score column
     events = events.filter(events.score >= 2) # Filter by assigned score
-    events = events.dropDuplicates(['SOURCEURL'])
+    print('Score 2 and over:', events.count())
     events = events.toPandas()
 
     # for filtering titles data for easier merging
@@ -70,6 +74,7 @@ def match_admin(spark):
 
     admins = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ADMIN_TABLE}")
     admins = admins.toPandas()
+    admins = admins.drop('DATEADDED', axis=1)
     event_news = merge_event_news(spark)
     event_admin_news = pd.merge(event_news, admins, 'left', on='GLOBALEVENTID')
     # Drop repetitive columns
@@ -106,13 +111,13 @@ def clean_lines(df, text_col):
     return article_df
 
 
-def error_handler(df, text_col, drop=True):
+def error_handler(df, text_col, drop_error=True):
     """
     Detect/drop rows with error messages
     Args:
         df: dataframe
         text_col: the text col
-        drop: bool specifying whether to drop the flag columns and rows with errors
+        drop_error: bool specifying whether to drop the flag columns and rows with errors
     """
 
     article_df = df.copy()
@@ -131,7 +136,7 @@ def error_handler(df, text_col, drop=True):
     article_df['title'].fillna('', inplace=True)
     article_df['error_title'] = article_df['title'].apply(lambda x: 1 if re.search(r'(page not found)|(are you a robot)|porn|biztoc', x, re.IGNORECASE) else 0)
 
-    if drop:
+    if drop_error:
         article_df = article_df[article_df['error_text']==0]
         article_df = article_df.drop('error_text', axis=1)
         article_df = article_df[article_df['error_title']==0]
@@ -142,14 +147,14 @@ def error_handler(df, text_col, drop=True):
     return article_df
 
 
-def process_data(ord_data, text_col, drop=True):
+def process_data(ord_data, text_col, drop_error=True):
     """
     Process and clean the article DataFrame.
     Saves processed data as the attribute processed_df
     Args:
         ord_data: the dataframe containing texts
         text_col: the text column to clean
-        drop: bool specifying whether to drop the flag columns and rows with errors
+        drop_error: bool specifying whether to drop the flag columns and rows with errors
     """
 
     article_df = ord_data.copy()
@@ -159,7 +164,7 @@ def process_data(ord_data, text_col, drop=True):
     artical_df = clean_lines(article_df, text_col)
 
     # take out known error messages
-    article_df = error_handler(artical_df, text_col, drop)
+    article_df = error_handler(artical_df, text_col, drop_error)
 
     # Save the processed DataFrame as processed_df
     print(f'Number of articles after cleaning: {article_df.shape[0]}')

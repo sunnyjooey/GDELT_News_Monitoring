@@ -50,19 +50,16 @@ get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1).strftime('%Y-%m-%d')
 
 # inclusive
 start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1).strftime('%Y-%m-%d') 
-# exclusive
-end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d') 
 
 # Convert start and end dates to timestamps
 start_timestamp = datetime.strptime(start_date, "%Y-%m-%d")
-end_timestamp = datetime.strptime(end_date, "%Y-%m-%d")
 
 #so its datetime formate to filter 
 events = events.withColumn("DATEADDED", to_timestamp("DATEADDED", "yyyyMMddHHmmss"))
 
 # Filter the DataFrame based on the timestamp range
-events = events.filter((col("DATEADDED") >= lit(start_timestamp)) & (col("DATEADDED") <= lit(end_timestamp)))
-#events.count()
+events = events.filter(col("DATEADDED") >= lit(start_timestamp))
+print(events.count())
 
 # COMMAND ----------
 
@@ -108,12 +105,12 @@ evp = evp.drop(['ActionGeo_Long', 'ActionGeo_Lat', 'Shape_Leng', 'Shape_Area', '
 
 # COMMAND ----------
 
-evp = evp.loc[:, ['GLOBALEVENTID', 'Actor1_Adm1','Actor2_Adm1','Action_Adm1']]
+evp = evp.loc[:, ['GLOBALEVENTID', 'DATEADDED', 'Actor1_Adm1', 'Actor2_Adm1', 'Action_Adm1']]
 
 # COMMAND ----------
 
 # fill in nan with country codes
-evp[['Actor1_Adm1','Actor2_Adm1','Action_Adm1']] = evp[['Actor1_Adm1','Actor2_Adm1','Action_Adm1']].fillna(COUNTRY_CODES)
+evp[['Actor1_Adm1','Actor2_Adm1','Action_Adm1']] = evp[['Actor1_Adm1','Actor2_Adm1','Action_Adm1']].fillna(COUNTRY_CODE)
 
 # COMMAND ----------
 
@@ -126,3 +123,7 @@ evp_sdf = spark.createDataFrame(evp)
 
 # write save to pyspark
 evp_sdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ADMIN_TABLE))
+
+# COMMAND ----------
+
+
