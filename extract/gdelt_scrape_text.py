@@ -1,7 +1,7 @@
 # Databricks notebook source
-#!pip install nltk
-#!pip install newspaper3k 
-#!pip3 install readability-lxml
+# !pip install nltk
+# !pip install newspaper3k 
+# !pip3 install readability-lxml
 
 # COMMAND ----------
 
@@ -19,11 +19,13 @@ from pyspark.sql.window import Window
 # import libraries
 import math
 import nltk
+import datetime
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 
 # import function
-from scrapper import textgetter
+from scraper import textgetter
+from util import get_last_timestamp
 from param_spec import DATABASE_NAME, EVENT_TABLE, ARTICLE_TEXT_TABLE
 
 # COMMAND ----------
@@ -33,8 +35,19 @@ from param_spec import DATABASE_NAME, EVENT_TABLE, ARTICLE_TEXT_TABLE
 
 # COMMAND ----------
 
+# Get last time from article table
+start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1).strftime('%Y-%m-%d') 
+# Convert start and end dates to timestamps
+start_timestamp = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+
+# get urls from events table
 events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
 events = events.dropDuplicates(['SOURCEURL'])
+# so its datetime formate to filter 
+events = events.withColumn("DATEADDED", F.to_timestamp("DATEADDED", "yyyyMMddHHmmss"))
+
+# Filter the DataFrame based on the timestamp range
+events = events.filter(F.col("DATEADDED") >= F.lit(start_timestamp))
 
 # COMMAND ----------
 
@@ -53,7 +66,7 @@ print(events.count())
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC #### scrapping large df as a job
+# MAGIC #### scraping large df as a job
 
 # COMMAND ----------
 
@@ -61,6 +74,7 @@ idx_date = 0
 batch_size_date = 500
 total_range = events.count()
 num_batches_date = math.ceil(total_range / batch_size_date)
+tot_row = 0
 
 # COMMAND ----------
 
@@ -74,9 +88,16 @@ for batch in range(num_batches_date):
         df.append(dct)
 
     spdf = spark.createDataFrame(df)
+    # write to db
     spdf.write.mode('append').format('delta').option("mergeSchema", "true").saveAsTable("{}.{}".format(DATABASE_NAME, ARTICLE_TEXT_TABLE))
-    print(batch)
+    # tracking
     idx_date += batch_size_date
+    num_row = spdf.count()
+    tot_row += num_row
+    print('Batch', batch, 'has', num_row, 'rows')
+    print('Cumulative:', tot_row)
+    print('')
+    
 
 # COMMAND ----------
 

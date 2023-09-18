@@ -1,12 +1,13 @@
 import datetime as dt
 import pandas as pd
 
-COUNTRY_CODES = 'MI'
+COUNTRY_CODE = 'MI'
 CO = 'malawi'
 
 ### CONSTANT
 
-DATABASE_NAME = f'{CO}_news'
+#DATABASE_NAME = f'{CO}_news'
+DATABASE_NAME = 'default'
 
 EVENT_TABLE = 'brz_gdelt_events_raw'
 
@@ -28,4 +29,5 @@ SHAPEFILE = '/dbfs/FileStore/df/shapefiles/malawi_admin1'
 
 CAMEO_TABLE = '/dbfs/user/hive/warehouse/malawi_news.db/cameo.csv'
                     
-TARGET_CAMEO = ['14','15','17','18','19']
+#TARGET_CAMEO = ['14','15','17','18','19']
+TARGET_CAMEO = []

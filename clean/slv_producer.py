@@ -1,27 +1,25 @@
 # Databricks notebook source
 import pandas as pd
 import re
-from event_news_clean import match_admin, merge_event_news, clean_lines, error_handler, process_data
-from param_spec import DATABASE_NAME, CLEAN_TABLE, CAMEO_TABLE
+from event_news_clean import match_admin, process_data
+from param_spec import DATABASE_NAME, CLEAN_TABLE
 
 # COMMAND ----------
 
-# Fetch the data
+# Fetch the data - merge event, title, text, admin together
 data = match_admin(spark)
+print('Data shape:', data.shape)
 
 # COMMAND ----------
 
 # Select the columns in the interests
-sample = spark.sql(f'SELECT * FROM openai_gdelt_su_t2.gdelt_news_su_short_viz')
-headers = sample.toPandas().columns
-headers = list(headers[:-1])
-headers.extend(['text', 'title'])
+headers = ['GLOBALEVENTID', 'DATEADDED', 'SOURCEURL', 'score', 'EventCode','EventBaseCode', 'EventRootCode', 'Actor1Code', 'Actor1Name', 'Actor2Code', 'Actor2Name', 'GoldsteinScale', 'AvgTone', 'Actor1_Adm1', 'Actor2_Adm1', 'Action_Adm1', 'text', 'title']
 new_data = data.loc[:, headers]
-new_data.loc[:, 'title'].fillna('', inplace=True)
 
 # COMMAND ----------
 
-final_data = process_data(new_data, 'text', drop=False)
+# cleaning and finding errors
+final_data = process_data(new_data, 'text', drop_error=False)
 
 # COMMAND ----------
 
