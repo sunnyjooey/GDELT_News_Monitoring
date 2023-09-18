@@ -38,10 +38,6 @@ events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
 
 # COMMAND ----------
 
-get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1).strftime('%Y-%m-%d') 
-
-# COMMAND ----------
-
 # for testing:
 # inclusive
 # start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 3).strftime('%Y-%m-%d') 
