@@ -65,6 +65,7 @@ idx_date = 0
 batch_size_date = 96
 total_range = len(date_range)
 num_batches_date = math.ceil(total_range / batch_size_date)
+tot_embed = 0
 
 for batch in range(num_batches_date):
     print('Batch:', batch)
@@ -118,7 +119,10 @@ for batch in range(num_batches_date):
 
     # reset index
     _gdelt_data_batch.reset_index(inplace=True, drop=True)
-    print('ALL GSG embeddings in batch:', _gdelt_data_batch.shape)
+    print('ALL GSG embeddings in batch:', _gdelt_data_batch.shape[0])
+    tot_embed += _gdelt_data_batch.shape[0]
+    print('Cumulative:', tot_embed)
+    print('')
     
     # convert to spark
     spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")

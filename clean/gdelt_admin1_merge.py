@@ -1,7 +1,7 @@
 # Databricks notebook source
-#!pip install pysal
-#!pip install descartes
-#!pip install geopandas
+# !pip install pysal
+# !pip install descartes
+# !pip install geopandas
 
 # COMMAND ----------
 
@@ -15,7 +15,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import to_timestamp, to_date, col, lit, udf
 from pyspark.sql.types import IntegerType
 from util import get_last_timestamp
-from param_spec import COUNTRY_CODES, DATABASE_NAME, EVENT_TABLE, ADMIN_TABLE, SHAPEFILE
+from param_spec import COUNTRY_CODE, DATABASE_NAME, EVENT_TABLE, ADMIN_TABLE, SHAPEFILE
 
 # COMMAND ----------
 
@@ -35,6 +35,10 @@ from param_spec import COUNTRY_CODES, DATABASE_NAME, EVENT_TABLE, ADMIN_TABLE, S
 events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
 #events = events.orderBy("DATEADDED")
 #display(events) #is SQL DATE and DATEADDED the same, seems not to be first SQL date is 20190101, 190,01,01 first DATEADDED dates, 2020,01,01.... 
+
+# COMMAND ----------
+
+get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1).strftime('%Y-%m-%d') 
 
 # COMMAND ----------
 

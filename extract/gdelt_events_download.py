@@ -10,7 +10,7 @@ import urllib
 import zipfile
 import gc
 from io import BytesIO
-from param_spec import COUNTRY_CODES, DATABASE_NAME, EVENT_TABLE, ERROR_TABLE
+from param_spec import COUNTRY_CODE, DATABASE_NAME, EVENT_TABLE, ERROR_TABLE
 from util import get_last_timestamp
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
@@ -90,9 +90,9 @@ for batch in range(num_batches_date):
     print('ALL GDELT 2.0 events in batch:', _gdelt_data_batch.shape)
     # select data from events for defined country 
     # note: we are not filtering by Actor1CountryCode (and 2) because they do not seem to be accurate
-    _gdelt_data_batch = _gdelt_data_batch.loc[(_gdelt_data_batch.ActionGeo_CountryCode == COUNTRY_CODES) | 
-                                              (_gdelt_data_batch.Actor1Geo_CountryCode == COUNTRY_CODES) | 
-                                              (_gdelt_data_batch.Actor2Geo_CountryCode == COUNTRY_CODES)].copy()
+    _gdelt_data_batch = _gdelt_data_batch.loc[(_gdelt_data_batch.ActionGeo_CountryCode == COUNTRY_CODE) | 
+                                              (_gdelt_data_batch.Actor1Geo_CountryCode == COUNTRY_CODE) | 
+                                              (_gdelt_data_batch.Actor2Geo_CountryCode == COUNTRY_CODE)].copy()
     print('Number of country relevant events:', _gdelt_data_batch.shape[0])
     # reset index
     _gdelt_data_batch.reset_index(inplace=True, drop=True)
@@ -113,6 +113,7 @@ gdelt_data_full_search.reset_index(inplace=True, drop=True)
 
 # minor cleaning - drop columns
 gdelt_data_full_search = gdelt_data_full_search.drop(columns=['MonthYear', 'Year', 'FractionDate'])
+print(gdelt_data_full_search.shape)
 
 # COMMAND ----------
 
@@ -134,6 +135,11 @@ spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NA
 
 # save error table if any
 if error_df.shape[0] > 0:
+    print('Number of errors:', error_df.shape[0])
     eschema = [StructField(col, StringType(), True) for col in error_df.columns]
     spedf = spark.createDataFrame(error_df, StructType(eschema))
     spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE))
+
+# COMMAND ----------
+
+

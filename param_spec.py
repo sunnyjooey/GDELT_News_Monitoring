@@ -1,12 +1,13 @@
 import datetime as dt
 import pandas as pd
 
-COUNTRY_CODES = 'MI'
+COUNTRY_CODE = 'MI'
 CO = 'malawi'
 
 ### CONSTANT
 
-DATABASE_NAME = f'{CO}_news'
+#DATABASE_NAME = f'{CO}_news'
+DATABASE_NAME = 'default'
 
 EVENT_TABLE = 'brz_gdelt_events_raw'
 
