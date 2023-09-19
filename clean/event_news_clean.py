@@ -8,7 +8,7 @@ warnings.simplefilter('ignore', FutureWarning)
 from param_spec import EVENT_TABLE, EMBED_TABLE, ARTICLE_TEXT_TABLE, CLEAN_TABLE, DATABASE_NAME, ADMIN_TABLE, TARGET_CAMEO, COUNTRY_CODE
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
-
+from util import get_last_timestamp
 
 def create_score_col(spark_event_df):
     """
@@ -36,11 +36,23 @@ def merge_event_news(spark):
     events = events.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
     events = events.withColumn('DATEADDED', F.to_date('DATEADDED'))
     print('Total number of events:', events.count())
+    
+    end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1, date_col='DATEADDED')).strftime('%Y-%m-%d')
+    start_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1, date_col='DATEADDED') - dt.timedelta(days=6)).strftime('%Y-%m-%d')
+    end_date = dt.datetime.strptime(end_date, '%Y-%m-%d')
+    start_date = dt.datetime.strptime(start_date, '%Y-%m-%d')
+    events = events.filter((events.DATEADDED >= start_date) & (events.DATEADDED <= end_date))# Filter to one week
+    print('selected date starts on:', start_date)
+    print('selected date ends on:', end_date)
+    print('num of events within the time range:', events.count())
+
     events = events.filter((events.IsRootEvent == '1')) # Filter to root events
     print('IsRootEvent:', events.count())
+
     if len(TARGET_CAMEO) > 0:
         events = events.filter(events.EventRootCode.isin(TARGET_CAMEO)) # Filter to target 
-        print('Target cameo:', event.count())
+        print('Target cameo:', events.count())
+
     events = create_score_col(events) # create score column
     events = events.filter(events.score >= 2) # Filter by assigned score
     print('Score 2 and over:', events.count())
@@ -48,8 +60,6 @@ def merge_event_news(spark):
 
     # for filtering titles data for easier merging
     titles = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EMBED_TABLE}")
-    titles = titles.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
-    titles = titles.withColumn('DATEADDED', F.to_date('DATEADDED'))
     titles = titles.dropDuplicates(['url'])
     titles = titles.toPandas()
     titles.rename(columns={'DATEADDED': 'DATEADDED_titles'}, inplace=True)
@@ -58,8 +68,6 @@ def merge_event_news(spark):
 
     # for filtering texts data for easier merging
     texts =  spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ARTICLE_TEXT_TABLE}")
-    texts = texts.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
-    texts = texts.withColumn('DATEADDED', F.to_date('DATEADDED'))
     texts = texts.dropDuplicates(['url'])
     texts = texts.toPandas()
     texts.rename(columns={'DATEADDED': 'DATEADDED_texts'}, inplace=True)
@@ -134,6 +142,7 @@ def error_handler(df, text_col, drop_error=True):
 
     # take out known error messages - title col (hard code)
     article_df['title'].fillna('', inplace=True)
+    article_df['title'] = article_df['title'].map(str)
     article_df['error_title'] = article_df['title'].apply(lambda x: 1 if re.search(r'(page not found)|(are you a robot)|porn|biztoc', x, re.IGNORECASE) else 0)
 
     if drop_error:

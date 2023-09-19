@@ -1,7 +1,7 @@
 # Databricks notebook source
-# !pip install nltk
-# !pip install newspaper3k 
-# !pip3 install readability-lxml
+#!pip install nltk
+#!pip install newspaper3k 
+#!pip3 install readability-lxml
 
 # COMMAND ----------
 
@@ -34,6 +34,12 @@ from param_spec import DATABASE_NAME, EVENT_TABLE, ARTICLE_TEXT_TABLE
 # MAGIC #### load data
 
 # COMMAND ----------
+
+# for testing
+# Get last time from article table
+#start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 3).strftime('%Y-%m-%d') 
+# Convert start and end dates to timestamps
+#start_timestamp = datetime.datetime.strptime(start_date, "%Y-%m-%d")
 
 # Get last time from article table
 start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1).strftime('%Y-%m-%d') 

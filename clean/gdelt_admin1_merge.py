@@ -1,7 +1,7 @@
 # Databricks notebook source
-# !pip install pysal
-# !pip install descartes
-# !pip install geopandas
+#!pip install pysal
+#!pip install descartes
+#!pip install geopandas
 
 # COMMAND ----------
 
@@ -40,9 +40,9 @@ events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
 
 # for testing:
 # inclusive
-# start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 3).strftime('%Y-%m-%d') 
+#start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 3).strftime('%Y-%m-%d') 
 # exclusive
-# end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3) + dt.timedelta(days=1)).strftime('%Y-%m-%d') 
+#end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3) + dt.timedelta(days=1)).strftime('%Y-%m-%d') 
 
 # inclusive
 start_date = get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1).strftime('%Y-%m-%d') 
