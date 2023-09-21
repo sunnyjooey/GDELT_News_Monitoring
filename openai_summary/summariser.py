@@ -81,7 +81,7 @@ class Summariser:
         # colnames
         sum_col_full = f'short_summary_full_{arg_id}'
         sum_col = f'short_summary_{arg_id}'
-        cols = ['url', 'title', text_col, sum_col_full, sum_col]
+        cols = ['SOURCEURL', 'title', text_col, sum_col_full, sum_col]
 
         # data
         data = self.article_df[cols].copy()

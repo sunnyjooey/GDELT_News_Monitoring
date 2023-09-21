@@ -17,6 +17,8 @@
 #### packages ####
 import openai
 from summariser import Summariser
+from param_spec import DATABASE_NAME, CLEAN_TABLE, SUMMARY_TABLE, ARG_TABLE
+import pandas as pd
 
 # COMMAND ----------
 
@@ -46,7 +48,7 @@ deployment_name = 'gdelt_test'
 
 # Send a completion call to generate an answer, TEST for API working 
 print('Sending a test completion job')
-start_phrase = 'Write a tagline for an ice cream shop. '
+start_phrase = 'Write a tagline for a flower shop. '
 response = openai.Completion.create(engine=deployment_name, prompt=start_phrase, max_tokens=10)
 text = response['choices'][0]['text'].replace('\n', '').replace(' .', '.').strip()
 print(start_phrase+text)
@@ -54,17 +56,28 @@ print(start_phrase+text)
 # COMMAND ----------
 
 # Load events data
-DATABASE_NAME = 'openai_gdelt_su_t2'
-INPUT_TABLE_NAME = 'gdelt_news_text_su_slv' 
-events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
-events.count()
+events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{CLEAN_TABLE}")
+print(events.count())
+
+events = events.dropDuplicates(['SOURCEURL'])
+print(events.count())
 
 # COMMAND ----------
 
 # convert data to pandas
 news = events.toPandas()
-news = news.sort_values('DATEADDED')
-# # news = news.sample(20, random_state=21)
+
+# Minor cleaning
+errors = news.loc[:, 'empty_return'] + news.loc[:, 'error_text'] + news.loc[:, 'error_title']
+news = news.loc[(errors == 0),:]
+news = news.sort_values('DATEADDED').reset_index(drop=True)
+news.loc[:, 'rough_token_count'] = news.loc[:, 'text_clean'].map(lambda x: len(x.split()))
+
+sample_news = news.sample(20, random_state=21)
+
+# COMMAND ----------
+
+news.loc[:, 'rough_token_count'].agg(['mean', 'max', 'min'])
 
 # COMMAND ----------
 
@@ -88,36 +101,44 @@ news = news.sort_values('DATEADDED')
 
 # COMMAND ----------
 
-prompt = "Provide a summary of the following text that captures its main idea."
+#prompt = "Provide a summary of the following text that captures its main idea."
+prompts = ["tl;dr",
+           "Provide a summary of the following text that captures its main idea",
+           "Act as a news analyst and provide a summary of the following text that captures its main idea",
+           "Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary",
+           '''Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary. Your answer should have "The article discusses" as your first starting words''']
 
 # COMMAND ----------
 
 # instantiate
-s = Summariser(deployment_name, news)
-
-# COMMAND ----------
-
-# clean process text
-s.process_data(text_col='text')
+s = Summariser(deployment_name, sample_news)
 
 # COMMAND ----------
 
 # summarize
-s.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=1, stop=None)
+for prompt in prompts:
+    s.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
 
 # COMMAND ----------
 
-s._print('text')
+s.generate_summaries('text_clean', prompt=prompts[4], max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
+
+# COMMAND ----------
+
+display(s.args_df)
 
 # COMMAND ----------
 
 # get data for saving
-arg_id = s.args_df.iloc[0,0]
-df, ar = s._get_final_table('text_clean', arg_id)
+arg_ids = s.args_df.loc[:,"arg_id"].tolist()
+summary_df = pd.DataFrame()
+for arg_id in arg_ids:
+    df, _ = s._get_final_table('text_clean', arg_id)
+    summary_df = pd.concat([summary_df, df])
 
 # COMMAND ----------
 
-display(df)
+display(summary_df)
 
 # COMMAND ----------
 
@@ -129,12 +150,12 @@ spar = spark.createDataFrame(ar)
 # COMMAND ----------
 
 # save file
-DATABASE_NAME = 'openai_gdelt_su_t2'
-OUTPUT_TABLE_NAME = 'gdelt_news_su_short_gold'
-ARG_TABLE_NAME = 'gdelt_news_su_arg_ids'
 
-spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
-spar.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ARG_TABLE_NAME))
+OUTPUT_TABLE_NAME = 'gdelt_news_su_short_gold'
+ARG_TABLE = 'gdelt_news_su_arg_ids'
+
+spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, SUMMARY_TABLE))
+spar.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ARG_TABLE))
 
 # COMMAND ----------
 
@@ -233,7 +254,7 @@ spar = spark.createDataFrame(ar)
 # save file
 DATABASE_NAME = 'openai_gdelt_su_t2'
 OUTPUT_TABLE_NAME = 'gdelt_news_su_long_gold'
-ARG_TABLE_NAME = 'gdelt_news_su_arg_ids'
+ARG_TABLE_NAME = 'gdelt_news_mi_arg_ids'
 
 spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
 spar.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ARG_TABLE_NAME))

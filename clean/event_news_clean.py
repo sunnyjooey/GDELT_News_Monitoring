@@ -138,7 +138,7 @@ def error_handler(df, text_col, drop_error=True):
 
     # take out known error messages - text col (hard code)
     article_df[text_col_clean].fillna('', inplace=True)
-    article_df['error_text'] = article_df[text_col_clean].apply(lambda x: 1 if re.search(r'(something went wrong, please try again later)|(cloudflare ray)|(legal disclaimer)|(page unavailable)|(website is using a security service to protect itself from online attacks)|(is using a security service for protection against online attacks)|(412 error)|(access denied - godaddy website)', x, re.IGNORECASE) else 0)
+    article_df['error_text'] = article_df[text_col_clean].apply(lambda x: 1 if re.search(r'(something went wrong, please try again later)|(cloudflare ray)|(legal disclaimer)|(page unavailable)|(website is using a security service to protect itself from online attacks)|(is using a security service for protection against online attacks)|(412 error)|(access denied - godaddy website)|(click below to consent to the above or make granular choices.)', x, re.IGNORECASE) else 0)
 
     # take out known error messages - title col (hard code)
     article_df['title'].fillna('', inplace=True)
