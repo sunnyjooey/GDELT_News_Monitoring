@@ -37,13 +37,15 @@ def merge_event_news(spark):
     events = events.withColumn('DATEADDED', F.to_date('DATEADDED'))
     print('Total number of events:', events.count())
     
-    end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1, date_col='DATEADDED')).strftime('%Y-%m-%d')
-    start_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1, date_col='DATEADDED') - dt.timedelta(days=6)).strftime('%Y-%m-%d')
-    end_date = dt.datetime.strptime(end_date, '%Y-%m-%d')
+    # Filter to the lastest events
+    start_date = (get_last_timestamp(DATABASE_NAME, CLEAN_TABLE, 1, date_col='DATEADDED')).strftime('%Y-%m-%d')
     start_date = dt.datetime.strptime(start_date, '%Y-%m-%d')
-    events = events.filter((events.DATEADDED >= start_date) & (events.DATEADDED <= end_date))# Filter to one week
+    tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{CLEAN_TABLE}")
+    if tableExists:
+        events = events.filter((events.DATEADDED > start_date))
+    else:
+        events = events.filter((events.DATEADDED >= start_date))
     print('selected date starts on:', start_date)
-    print('selected date ends on:', end_date)
     print('num of events within the time range:', events.count())
 
     events = events.filter((events.IsRootEvent == '1')) # Filter to root events
@@ -138,7 +140,7 @@ def error_handler(df, text_col, drop_error=True):
 
     # take out known error messages - text col (hard code)
     article_df[text_col_clean].fillna('', inplace=True)
-    article_df['error_text'] = article_df[text_col_clean].apply(lambda x: 1 if re.search(r'(something went wrong, please try again later)|(cloudflare ray)|(legal disclaimer)|(page unavailable)|(website is using a security service to protect itself from online attacks)|(is using a security service for protection against online attacks)|(412 error)|(access denied - godaddy website)|(click below to consent to the above or make granular choices.)', x, re.IGNORECASE) else 0)
+    article_df['error_text'] = article_df[text_col_clean].apply(lambda x: 1 if re.search(r'(something went wrong, please try again later)|(cloudflare ray)|(legal disclaimer)|(page unavailable)|(website is using a security service to protect itself from online attacks)|(is using a security service for protection against online attacks)|(412 error)|(access denied - godaddy website)|(click below to consent to the above or make granular choices)', x, re.IGNORECASE) else 0)
 
     # take out known error messages - title col (hard code)
     article_df['title'].fillna('', inplace=True)

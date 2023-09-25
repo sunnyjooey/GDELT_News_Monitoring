@@ -102,11 +102,15 @@ news.loc[:, 'rough_token_count'].agg(['mean', 'max', 'min'])
 # COMMAND ----------
 
 #prompt = "Provide a summary of the following text that captures its main idea."
-prompts = ["tl;dr",
+prompts_text = ["tl;dr",
            "Provide a summary of the following text that captures its main idea",
            "Act as a news analyst and provide a summary of the following text that captures its main idea",
            "Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary",
            '''Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary. Your answer should have "The article discusses" as your first starting words''']
+
+prompts_title = ["tl;dr",
+                 "Expand on the following news article headline into a detailed summary, making sure to incorporate all of the detail. ",
+                 "Act as a news analyst and expand on the following news article headline into a detailed summary, making sure to incorporate all of the detail."]
 
 # COMMAND ----------
 
@@ -116,12 +120,8 @@ s = Summariser(deployment_name, sample_news)
 # COMMAND ----------
 
 # summarize
-for prompt in prompts:
-    s.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
-
-# COMMAND ----------
-
-s.generate_summaries('text_clean', prompt=prompts[4], max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
+for prompt in prompts_title:
+    s.generate_summaries('title', prompt=prompt, max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
 
 # COMMAND ----------
 
@@ -139,6 +139,14 @@ for arg_id in arg_ids:
 # COMMAND ----------
 
 display(summary_df)
+
+# COMMAND ----------
+
+titles = '; '.join(sample_news.title.to_list())
+prompt = f"Summarize the following list of news article headlines into a detailed summary, making sure to incorporate all of the detail from the different headlines in a single summary: {titles}"
+response = openai.Completion.create(engine=deployment_name, prompt=prompt, max_tokens=200, best_of=3, stop=None)
+text = response['choices'][0]['text'].replace('\n', '').replace(' .', '.').strip()
+print(text)
 
 # COMMAND ----------
 

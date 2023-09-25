@@ -41,15 +41,20 @@ from param_spec import DATABASE_NAME, EVENT_TABLE, ARTICLE_TEXT_TABLE
 # Convert start and end dates to timestamps
 #start_timestamp = datetime.datetime.strptime(start_date, "%Y-%m-%d")
 
-# Get last time from article table
-start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1).strftime('%Y-%m-%d') 
-# Convert start and end dates to timestamps
+# test whether the event table already exists
+tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{ARTICLE_TEXT_TABLE}")
+if tableExists:
+    start_date = (get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1) + datetime.timedelta(days=1)).strftime('%Y-%m-%d') # inclusive
+else:
+    start_date = get_last_timestamp(DATABASE_NAME, ARTICLE_TEXT_TABLE, 1).strftime('%Y-%m-%d') # inclusive
+ 
+# Convert start date to timestamp
 start_timestamp = datetime.datetime.strptime(start_date, "%Y-%m-%d")
 
 # get urls from events table
 events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVENT_TABLE}")
 events = events.dropDuplicates(['SOURCEURL'])
-# so its datetime formate to filter 
+# so its datetime format to filter 
 events = events.withColumn("DATEADDED", F.to_timestamp("DATEADDED", "yyyyMMddHHmmss"))
 
 # Filter the DataFrame based on the timestamp range

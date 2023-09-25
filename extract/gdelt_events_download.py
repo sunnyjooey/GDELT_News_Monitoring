@@ -24,7 +24,14 @@ from pyspark.sql.types import StructType, StructField, StringType
 # Input date Params
 #for testing: 
 #start_date = get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3).strftime('%Y-%m-%d') # inclusive
-start_date = get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1).strftime('%Y-%m-%d') # inclusive
+
+# test whether the event table already exists
+tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{EVENT_TABLE}")
+if tableExists:
+    start_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d') # inclusive
+else:
+    start_date = get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1).strftime('%Y-%m-%d') # inclusive
+
 end_date = dt.datetime.now().strftime('%Y-%m-%d') # exclusive
 
 # COMMAND ----------

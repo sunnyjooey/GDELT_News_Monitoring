@@ -28,7 +28,13 @@ from pyspark.sql.types import StructType, StructField, StringType, FloatType
 #end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 3) + dt.timedelta(days=1)).strftime('%Y-%m-%d')
 
 # inclusive
-start_date = get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 1).strftime('%Y-%m-%d') 
+# test whether the embed table already exists
+tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{EMBED_TABLE}")
+if tableExists:
+    start_date = (get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d') # inclusive
+else:
+    start_date = get_last_timestamp(DATABASE_NAME, EMBED_TABLE, 1).strftime('%Y-%m-%d') # inclusive
+
 # exclusive
 end_date = (get_last_timestamp(DATABASE_NAME, EVENT_TABLE, 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d')
 

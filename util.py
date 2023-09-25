@@ -3,6 +3,7 @@ import datetime as dt
 import re
 from pyspark.sql.types import StructField, BooleanType, StringType, IntegerType, FloatType, ArrayType, TimestampType
 from pyspark.sql import SparkSession
+from param_spec import ARTICLE_TEXT_TABLE
 
 # Create SparkSession
 spark = SparkSession.builder.getOrCreate()
@@ -15,7 +16,13 @@ def get_last_timestamp(db_name, table_name, w, date_col='DATEADDED'):
     if table_name in tables:
         # list search - must be more than one day from now to account for error handling
         d = dt.datetime.now() - dt.timedelta(days=1)
-        last_ts = spark.sql(f"SELECT MAX({date_col}) as last_timestamp FROM {db_name}.{table_name} WHERE {date_col} < '{d.year}{d.month}{d.day}{d.hour}{d.minute}{d.second}'")
+
+        if table_name == ARTICLE_TEXT_TABLE:
+            # transform date format for ARTICLE_TEXT_TABLE
+            last_ts = spark.sql(f"""SELECT MAX(ts_time) AS last_timestamp FROM (SELECT date_format(from_unixtime(unix_timestamp({date_col}, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")), "yyyyMMddHHmmss") AS ts_time FROM {db_name}.{table_name}) WHERE ts_time < '{d.year}{d.month}{d.day}{d.hour}{d.minute}{d.second}'""")
+        else:
+            last_ts = spark.sql(f"SELECT MAX({date_col}) as last_timestamp FROM {db_name}.{table_name} WHERE {date_col} < '{d.year}{d.month}{d.day}{d.hour}{d.minute}{d.second}'")
+            
         last_ts = last_ts.first()['last_timestamp']
         w_wk_ago = pd.to_datetime((dt.datetime.now() - dt.timedelta(weeks=w)), format='%Y%m%d%H%M%S')
         #w_wk_ago = pd.to_datetime((dt.datetime.now() - dt.timedelta(days=w)), format='%Y%m%d%H%M%S')
@@ -31,4 +38,3 @@ def get_last_timestamp(db_name, table_name, w, date_col='DATEADDED'):
         #ret = pd.to_datetime((dt.datetime.now() - dt.timedelta(days=w)), format='%Y%m%d%H%M%S')
 
     return ret
-
