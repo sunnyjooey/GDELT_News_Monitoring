@@ -38,9 +38,9 @@ def merge_event_news(spark):
     print('Total number of events:', events.count())
     
     # Filter to the lastest events
-    start_date = (get_last_timestamp(DATABASE_NAME, CLEAN_TABLE, 1, date_col='DATEADDED')).strftime('%Y-%m-%d')
+    start_date = (get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1, date_col='DATEADDED')).strftime('%Y-%m-%d')
     start_date = dt.datetime.strptime(start_date, '%Y-%m-%d')
-    tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{CLEAN_TABLE}")
+    tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{ADMIN_TABLE}")
     if tableExists:
         events = events.filter((events.DATEADDED > start_date))
     else:
