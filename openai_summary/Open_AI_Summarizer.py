@@ -98,6 +98,9 @@ news.loc[:, 'rough_token_count'].agg(['mean', 'max', 'min'])
 #prompt = ["Summarize text in two-three lines"] 
 #prompt = ["Summarize news articles in two-three complete lines. Avoid new lines and lists"] #last part did not work
 ###prompt = ["Provide a summary of the article in less than 90-100 words"]
+#prompts_title = ["tl;dr",
+                 #"Expand on the following news article headline into a detailed summary, making sure to incorporate all of the detail. ",
+                 #"Act as a news analyst and expand on the following news article headline into a detailed summary, making sure to incorporate all of the detail."]
 
 # COMMAND ----------
 
@@ -108,9 +111,6 @@ prompts_text = ["tl;dr",
            "Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary",
            '''Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary. Your answer should have "The article discusses" as your first starting words''']
 
-prompts_title = ["tl;dr",
-                 "Expand on the following news article headline into a detailed summary, making sure to incorporate all of the detail. ",
-                 "Act as a news analyst and expand on the following news article headline into a detailed summary, making sure to incorporate all of the detail."]
 
 # COMMAND ----------
 
@@ -120,8 +120,8 @@ s = Summariser(deployment_name, sample_news)
 # COMMAND ----------
 
 # summarize
-for prompt in prompts_title:
-    s.generate_summaries('title', prompt=prompt, max_tokens=100, temp=0.3, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
+for prompt in prompts_text:
+    s.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=1, top_p=1, freq_p=0, presence_p=0, best_of=3, stop=None)
 
 # COMMAND ----------
 
@@ -139,14 +139,6 @@ for arg_id in arg_ids:
 # COMMAND ----------
 
 display(summary_df)
-
-# COMMAND ----------
-
-titles = '; '.join(sample_news.title.to_list())
-prompt = f"Summarize the following list of news article headlines into a detailed summary, making sure to incorporate all of the detail from the different headlines in a single summary: {titles}"
-response = openai.Completion.create(engine=deployment_name, prompt=prompt, max_tokens=200, best_of=3, stop=None)
-text = response['choices'][0]['text'].replace('\n', '').replace(' .', '.').strip()
-print(text)
 
 # COMMAND ----------
 
@@ -173,100 +165,72 @@ print(spdf.filter((spdf.openai_summary!='EM') & (spdf.openai_summary!='ER') & (s
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ##### 2.2 second dataframe, summaries of summaries 
-# MAGIC
+# MAGIC ##### 2.2 Param trials
 
 # COMMAND ----------
 
-# original events data with the event base codes
-brz = spark.sql(f"SELECT * FROM openai_gdelt_su_t2.gdelt_news_su_brz") 
-# short summary data - to filter out badly scraped data
-spdf = spark.sql(f"SELECT * FROM openai_gdelt_su_t2.gdelt_news_su_short_gold") 
-brz = brz.select('SOURCEURL', 'DATEADDED', 'EventRootCode')
-spdf = spdf.select('url', 'title', 'text_clean')
-# merge together on url
-brz = brz.join(spdf, brz.SOURCEURL==spdf.url, 'left')
-# drop nulls - these were badly scraped and lost in the process
-brz = brz.filter(brz.url.isNotNull())
-brz = brz.dropDuplicates(['SOURCEURL', 'EventRootCode']).drop('SOURCEURL')
-code_news = brz.toPandas()
+test_urls = ['https://pmnch.who.int/news-and-events/news/item/11-09-2023-to-improve-my-wellbeing', 'http://www.bjreview.com.cn/Lifestyle/202309/t20230915_800342386.html', 'https://www.wired.com/story/a-global-surge-in-cholera-outbreaks-may-be-fueled-by-climate-change/']
+sample_df = news.loc[(news.loc[:,'SOURCEURL'].isin(test_urls)), :].reset_index(drop=True)
+display(sample_df)
 
 # COMMAND ----------
 
-display(code_news)
+# set up prompt
+prompt = "Act as a news analyst and provide an objective, paragraph-long summary capturing the main idea of the following article for news commentary."
 
 # COMMAND ----------
 
-# instantiate
-s = Summariser(deployment_name, code_news)
+### Compare temperature
+temps = [0.2, 0.5, 0.8]
+s_temp = Summariser(deployment_name, sample_df)
+result_df = pd.DataFrame()
+
+for temp in temps:
+    s_temp.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=temp, top_p=1, freq_p=0, presence_p=0, best_of=1, stop=None)
+    arg_id = s_temp.args_df.iloc[0,0]
+    df, _ = s_temp._get_final_table('text_clean', arg_id)
+    df.loc[:, 'temperature'] = temp
+    result_df = pd.concat([result_df, df])
+    
+display(result_df)
 
 # COMMAND ----------
 
-# sample 5 articles per root event per month
-s.sample_article('EventRootCode', 'DATEADDED', 'text_clean', 'url', samp_num=5, random_state=5)
+### Compare presence penalty
+presence_ps = [-1.5, 0, 1.5]
+s_pre = Summariser(deployment_name, sample_df)
+result_df = pd.DataFrame()
+
+for presence_p in presence_ps:
+    s_pre.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=1, top_p=1, freq_p=0, presence_p=presence_p, best_of=1, stop=None)
+    arg_id = s_pre.args_df.iloc[0,0]
+    df, _ = s_pre._get_final_table('text_clean', arg_id)
+    df.loc[:, 'presence penalty'] = presence_p
+    result_df = pd.concat([result_df, df])
+    
+display(result_df)
 
 # COMMAND ----------
 
-# generate slightly longer summaries of each sampled article
-s.generate_summaries('text_clean', prompt, 300)
+### Compare best of
+best_ofs = [1, 2, 3]
+s_bef = Summariser(deployment_name, sample_df)
+result_df = pd.DataFrame()
+
+for best_of in best_ofs:
+    s_bef.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=1, top_p=1, freq_p=0, presence_p=0, best_of=best_of, stop=None)
+    arg_id = s_bef.args_df.iloc[0,0]
+    df, _ = s_bef._get_final_table('text_clean', arg_id)
+    df.loc[:, 'best of'] = best_of
+    result_df = pd.concat([result_df, df])
+    
+display(result_df)
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ###### Save intermediary text
-
-# COMMAND ----------
-
-# save the intermediary data table
+### default setting
+s = Summariser(deployment_name, sample_df)
+s.generate_summaries('text_clean', prompt=prompt, max_tokens=100, temp=1, top_p=1, freq_p=0, presence_p=0, best_of=1, stop=None)
 arg_id = s.args_df.iloc[0,0]
-intermed_df, ar = s._get_final_table('text_clean', arg_id)
-
-# COMMAND ----------
-
-# convert to pyspark
-spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
-spdf = spark.createDataFrame(intermed_df)
-spar = spark.createDataFrame(ar)
-
-# COMMAND ----------
-
-# save file
-DATABASE_NAME = 'openai_gdelt_su_t2'
-OUTPUT_TABLE_NAME = 'gdelt_news_su_intermed_slv'
-ARG_TABLE_NAME = 'gdelt_news_su_arg_ids'
-
-spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
-spar.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ARG_TABLE_NAME))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ##### Summary of summaries
-
-# COMMAND ----------
-
-# generate summary of summary
-arg_id = s.args_df.iloc[0,0]
-col = f'short_summary_{arg_id}'
-df, ar = s.gen_sum_of_sum(col,'EventRootCode', 'DATEADDED', 'url', prompt, 200)
-
-# COMMAND ----------
-
-# convert to pyspark
-spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
-spdf = spark.createDataFrame(df)
-spar = spark.createDataFrame(ar)
-
-# COMMAND ----------
-
-# save file
-DATABASE_NAME = 'openai_gdelt_su_t2'
-OUTPUT_TABLE_NAME = 'gdelt_news_su_long_gold'
-ARG_TABLE_NAME = 'gdelt_news_mi_arg_ids'
-
-spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
-spar.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ARG_TABLE_NAME))
-
-# COMMAND ----------
-
-
+df, _ = s._get_final_table('text_clean', arg_id)
+display(df)

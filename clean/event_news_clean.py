@@ -38,14 +38,14 @@ def merge_event_news(spark):
     print('Total number of events:', events.count())
     
     # Filter to the lastest events
-    start_date = (get_last_timestamp(DATABASE_NAME, ADMIN_TABLE, 1, date_col='DATEADDED')).strftime('%Y-%m-%d')
-    start_date = dt.datetime.strptime(start_date, '%Y-%m-%d')
-    tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{ADMIN_TABLE}")
+    tableExists = spark.catalog.tableExists(f"{DATABASE_NAME}.{CLEAN_TABLE}")
     if tableExists:
-        events = events.filter((events.DATEADDED > start_date))
-    else:
+        clean_table = spark.sql(f"SELECT DATEADDED FROM {DATABASE_NAME}.{CLEAN_TABLE} GROUP BY DATEADDED ORDER BY DATEADDED DESC")
+        start_date = clean_table.first()['DATEADDED'] + dt.timedelta(days=1)
+        start_date = dt.datetime.strptime(start_date.strftime('%Y%m%d%H%M%S'), '%Y%m%d%H%M%S')
         events = events.filter((events.DATEADDED >= start_date))
-    print('selected date starts on:', start_date)
+        print('new merge starts from:', start_date)
+        
     print('num of events within the time range:', events.count())
 
     events = events.filter((events.IsRootEvent == '1')) # Filter to root events
